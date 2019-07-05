@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
 set(BUILD_TARGET "tinyplotlib")
-set(TEST_APP "tests")
 
 project(${BUILD_TARGET})
 
@@ -60,17 +59,26 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 add_library(${BUILD_TARGET} ${TINYPLOTLIB_SOURCES})
 add_sanitizers(${BUILD_TARGET})
 
-add_executable(${TEST_APP}
+add_executable(test_colormap
   ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_colormap.cc
+)
+add_sanitizers(test_colormap)
+
+add_executable(test_matplot
+  ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_matplot.cc
   )
-add_sanitizers(${TEST_APP})
+add_sanitizers(test_matplot)
 
 
-target_include_directories(${TEST_APP} PRIVATE
+target_include_directories(test_colormap PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
+target_include_directories(test_matplot PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
 
-target_link_libraries(${TEST_APP} ${BUILD_TARGET})
+target_link_libraries(test_colormap ${BUILD_TARGET})
+target_link_libraries(test_matplot ${BUILD_TARGET})
 
 # [VisualStudio]
 if (WIN32)

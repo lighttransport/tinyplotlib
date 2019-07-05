@@ -156,10 +156,11 @@ public:
     m_height = -1;
     m_image = NULL;
     m_components = -1;
+    m_interpolate = true;
   }
 
   TextureSampler(unsigned char *image, int width, int height, int components,
-                 Format format, float gamma = 1.0f)
+                 Format format, bool interpolate, float gamma = 1.0f)
       : m_pow(gamma) {
     Set(image, width, height, components, format, gamma);
   }
@@ -167,7 +168,7 @@ public:
   ~TextureSampler() {}
 
   void Set(const unsigned char *image, int width, int height, int components,
-           Format format, float gamma = 1.0f) {
+           Format format, bool interpolate, float gamma = 1.0f) {
     m_width = width;
     m_height = height;
     m_image = image;
@@ -176,6 +177,7 @@ public:
     m_components = components;
     m_format = format;
     m_gamma = gamma;
+    m_interpolate = interpolate;
   }
 
   int width() const { return m_width; }
@@ -189,6 +191,8 @@ public:
   int format() const { return m_format; }
 
   float gamma() const { return m_gamma; }
+
+  bool interpolate() const { return m_interpolate; }
 
   void fetch(float *rgba, float u, float v) const;
 
@@ -206,6 +210,7 @@ private:
   int m_format;
   float m_gamma;
   PowGenerator m_pow;
+  bool m_interpolate;
 };
 
 int inline fasterfloor(const float x) {
@@ -364,12 +369,30 @@ void TextureSampler::fetch(float *rgba, float u, float v) const {
   int i10 = stride * (y1 * m_width + x0);
   int i11 = stride * (y1 * m_width + x1);
 
-  if (m_format == FORMAT_BYTE) {
-    FilterByteLerp(rgba, m_image, i00, i01, i10, i11, dx, dy, stride, m_pow);
-  } else if (m_format == FORMAT_FLOAT) {
-    FilterFloatLerp(rgba, reinterpret_cast<const float *>(m_image), i00, i01,
-                    i10, i11, dx, dy, stride, m_pow);
-  } else { // unknown
+  if (m_interpolate) {
+    if (m_format == FORMAT_BYTE) {
+      FilterByteLerp(rgba, m_image, i00, i01, i10, i11, dx, dy, stride, m_pow);
+    } else if (m_format == FORMAT_FLOAT) {
+      FilterFloatLerp(rgba, reinterpret_cast<const float *>(m_image), i00, i01,
+                      i10, i11, dx, dy, stride, m_pow);
+    } else { // unknown
+    }
+  } else {
+    if (m_format == FORMAT_BYTE) {
+
+      const float inv = 1.0f / 255.0f;
+      assert(stride == 4);
+
+      // Assume color is already degamma'ed.
+      rgba[0] = float(m_image[i00 + 0]) * inv;
+      rgba[1] = float(m_image[i00 + 1]) * inv;
+      rgba[2] = float(m_image[i00 + 2]) * inv;
+      rgba[3] = float(m_image[i00 + 3]) * inv;
+
+    } else if (m_format == FORMAT_FLOAT) {
+      // TODO
+    } else {
+    }
   }
 }
 
@@ -1332,8 +1355,11 @@ static void rtnvg__shade(float color[4], RTNVGcontext *rt,
     if (tex->type == NVG_TEXTURE_RGBA) {
       components = 4;
     }
+
+    bool interpolate = (tex->flags & NVG_IMAGE_NEAREST) ? false : true;
+
     sampler.Set(tex->data, tex->width, tex->height, components,
-                TextureSampler::FORMAT_BYTE);
+                TextureSampler::FORMAT_BYTE, interpolate);
     float tcol[4];
     sampler.fetch(tcol, pt[0] / frag->extent[0], pt[1] / frag->extent[1]);
 
@@ -1370,8 +1396,9 @@ static void rtnvg__shade(float color[4], RTNVGcontext *rt,
     if (tex->type == NVG_TEXTURE_RGBA) {
       components = 4;
     }
+    bool interpolate = (tex->flags & NVG_IMAGE_NEAREST) ? false : true;
     sampler.Set(tex->data, tex->width, tex->height, components,
-                TextureSampler::FORMAT_BYTE);
+                TextureSampler::FORMAT_BYTE, interpolate);
     // printf("texId = %d, data = %p, w = %d\n", rt->textureId, tex->data,
     // tex->width);
     float tcol[4];
