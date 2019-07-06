@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#if 0
 // src
 #include "nanovg.h"
 
@@ -144,6 +145,40 @@ vec3 inferno(float t) {
     return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));
 }
 
+// https://stackoverflow.com/questions/7706339/grayscale-to-red-green-blue-matlab-jet-color-scale
+static float interpolate( float val, float y0, float x0, float y1, float x1 ) {
+    return (val-x0)*(y1-y0)/(x1-x0) + y0;
+}
+
+static float base( float val ) {
+    if ( val <= -0.75 ) return 0;
+    else if ( val <= -0.25 ) return interpolate( val, 0.0, -0.75, 1.0, -0.25 );
+    else if ( val <= 0.25 ) return 1.0;
+    else if ( val <= 0.75 ) return interpolate( val, 1.0, 0.25, 0.0, 0.75 );
+    else return 0.0;
+}
+
+static float red( float gray ) {
+    return base( gray - 0.5 );
+}
+static float green( float gray ) {
+    return base( gray );
+}
+static float blue( float gray ) {
+    return base( gray + 0.5 );
+}
+
+vec3 jet(float t) {
+  vec3 col;
+  // [0, 1] to [-1, 1]
+  col[0] = red(2.0f * t - 1.0f);
+  col[1] = green(2.0f * t - 1.0f);
+  col[2] = blue(2.0f * t - 1.0f);
+
+  return col;
+}
+
+
 
 inline uint8_t ftoc(float x)
 {
@@ -247,6 +282,29 @@ int CreateInfernoColorMapImage(NVGcontext* ctx)
   return id;
 }
 
+int CreateJetColorMapImage(NVGcontext* ctx)
+{
+  const int w = 256;
+
+  // Create 1D image
+  std::vector<uint8_t> image_data(w * 4);
+
+  for (size_t i = 0; i < w; i++) {
+    // inclusive end: t = [0.0, 1.0]
+    float t = float(i) / float(w-1);
+    vec3 col = jet(t);
+
+    image_data[4 * i + 0] = ftoc(col[0]);
+    image_data[4 * i + 1] = ftoc(col[1]);
+    image_data[4 * i + 2] = ftoc(col[2]);
+    image_data[4 * i + 3] = 255;
+
+  }
+
+  int id = nvgCreateImageRGBA(ctx, w, /* height */1, /* flags */0, image_data.data());
+
+  return id;
+}
 
 
 int main(int argc, char **argv)
@@ -267,11 +325,13 @@ int main(int argc, char **argv)
   int plasma_colormap_image_id = CreatePlasmaColorMapImage(vg);
   int magma_colormap_image_id = CreateMagmaColorMapImage(vg);
   int inferno_colormap_image_id = CreateInfernoColorMapImage(vg);
+  int jet_colormap_image_id = CreateJetColorMapImage(vg);
 
   NVGpaint viridis_img_paint = nvgImagePattern(vg, 0.0f, 0.0f, 1024.0f, 32.0f, /* angle */0.0f, viridis_colormap_image_id, /* alpha */1.0f);
   NVGpaint plasma_img_paint = nvgImagePattern(vg, 0.0f, 0.0f, 1024.0f, 32.0f, /* angle */0.0f, plasma_colormap_image_id, /* alpha */1.0f);
   NVGpaint magma_img_paint = nvgImagePattern(vg, 0.0f, 0.0f, 1024.0f, 32.0f, /* angle */0.0f, magma_colormap_image_id, /* alpha */1.0f);
   NVGpaint inferno_img_paint = nvgImagePattern(vg, 0.0f, 0.0f, 1024.0f, 32.0f, /* angle */0.0f, inferno_colormap_image_id, /* alpha */1.0f);
+  NVGpaint jet_img_paint = nvgImagePattern(vg, 0.0f, 0.0f, 1024.0f, 32.0f, /* angle */0.0f, jet_colormap_image_id, /* alpha */1.0f);
 
   nvgClearBackgroundRT(vg, 0.3f, 0.4f, 0.54f, 1.0f);
 
@@ -289,7 +349,7 @@ int main(int argc, char **argv)
 
   // plasma
   {
-    int loc = 64;
+    int loc = 64 + 4;
     nvgBeginPath(vg);
     nvgRect(vg, 0, loc, 1024, 64);
     nvgFillPaint(vg, plasma_img_paint);
@@ -298,7 +358,7 @@ int main(int argc, char **argv)
 
   // magma
   {
-    int loc = 128;
+    int loc = 128 + 4 * 2;
     nvgBeginPath(vg);
     nvgRect(vg, 0, loc, 1024, 64);
     nvgFillPaint(vg, magma_img_paint);
@@ -307,10 +367,19 @@ int main(int argc, char **argv)
 
   // inferno
   {
-    int loc = 192;
+    int loc = 192 + 4 * 3;
     nvgBeginPath(vg);
     nvgRect(vg, 0, loc, 1024, 64);
     nvgFillPaint(vg, inferno_img_paint);
+    nvgFill(vg);
+  }
+
+  // jet
+  {
+    int loc = 192 + 64 + 4 * 4;
+    nvgBeginPath(vg);
+    nvgRect(vg, 0, loc, 1024, 64);
+    nvgFillPaint(vg, jet_img_paint);
     nvgFill(vg);
   }
   nvgEndFrame(vg);
@@ -323,8 +392,10 @@ int main(int argc, char **argv)
   nvgDeleteImage(vg, plasma_colormap_image_id);
   nvgDeleteImage(vg, magma_colormap_image_id);
   nvgDeleteImage(vg, inferno_colormap_image_id);
+  nvgDeleteImage(vg, jet_colormap_image_id);
   nvgDeleteRT(vg);
 
 
   return EXIT_SUCCESS;
 };
+#endif

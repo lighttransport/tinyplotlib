@@ -1,5 +1,6 @@
 #include "tinyplotlib.h"
 
+#if 0
 #include <cstdio>
 #include <cstdlib>
 #include <random>
@@ -183,3 +184,4 @@ int main(int argc, char **argv)
 
   return EXIT_SUCCESS;
 };
+#endif

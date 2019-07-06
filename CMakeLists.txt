@@ -42,8 +42,11 @@ endif()
 set(TINYPLOTLIB_SOURCES) # set to empty
 
 list(APPEND TINYPLOTLIB_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/tinyplotlib.cc
+  )
+
+list(APPEND NANOVG_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/src/nanovg.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/plot.cc
   )
 
 # Increase warning level for clang.
@@ -56,29 +59,39 @@ ENDIF ()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-add_library(${BUILD_TARGET} ${TINYPLOTLIB_SOURCES})
+add_library(${BUILD_TARGET} ${TINYPLOTLIB_SOURCES} ${NANOVG_SOURCES})
 add_sanitizers(${BUILD_TARGET})
 
-add_executable(test_colormap
-  ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_colormap.cc
+#add_executable(test_colormap
+#  ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_colormap.cc
+#)
+#add_sanitizers(test_colormap)
+#
+#add_executable(test_matplot
+#  ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_matplot.cc
+#  )
+#add_sanitizers(test_matplot)
+#
+#target_include_directories(test_colormap PRIVATE
+#  ${CMAKE_CURRENT_SOURCE_DIR}/include
+#  )
+#target_include_directories(test_matplot PRIVATE
+#  ${CMAKE_CURRENT_SOURCE_DIR}/include
+#  )
+#
+#target_link_libraries(test_colormap ${BUILD_TARGET})
+#target_link_libraries(test_matplot ${BUILD_TARGET})
+
+add_executable(test_api
+  ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_api.cc
 )
-add_sanitizers(test_colormap)
+add_sanitizers(test_api)
 
-add_executable(test_matplot
-  ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_matplot.cc
-  )
-add_sanitizers(test_matplot)
-
-
-target_include_directories(test_colormap PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-  )
-target_include_directories(test_matplot PRIVATE
+target_include_directories(test_api PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
 
-target_link_libraries(test_colormap ${BUILD_TARGET})
-target_link_libraries(test_matplot ${BUILD_TARGET})
+target_link_libraries(test_api ${BUILD_TARGET})
 
 # [VisualStudio]
 if (WIN32)
