@@ -1,6 +1,11 @@
 #include "tinyplotlib.h"
 
+// Use embeded font
+#include "roboto-mono-medium.inc"
+
 #include <map>
+#include <sstream>
+#include <iomanip>
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -194,40 +199,41 @@ inline uint8_t ftoc(float x)
 }
 
 
-static int CreateColorMapImage(NVGcontext* ctx, const std::string &cmap)
+static int CreateMatImage(NVGcontext* ctx, int width, int height, const float *data, const std::string &cmap)
 {
-  const int w = 256; // TODO
+  std::vector<uint8_t> image_data(size_t(width * height * 4));
 
-  // Create 1D image
-  std::vector<uint8_t> image_data(w * 4);
+  for (size_t j = 0; j < size_t(height); j++) {
+    for (size_t i = 0; i < size_t(width); i++) {
+      size_t idx = j * size_t(width) + i;
+      float t = data[idx];
 
-  for (size_t i = 0; i < w; i++) {
-    // inclusive end: t = [0.0, 1.0]
-    float t = float(i) / float(w-1);
+      // clamp to [0.0, 1.0]
+      t = std::min(1.0f, std::max(0.0f, t));
 
-    vec3 col;
-    if (cmap.compare("magma") == 0) {
-      col = magma(t);
-    } else if (cmap.compare("jet") == 0) {
-      col = jet(t);
-    } else if (cmap.compare("plasma") == 0) {
-      col = plasma(t);
-    } else if (cmap.compare("inferno") == 0) {
-      col = inferno(t);
-    } else if (cmap.compare("viridis") == 0) {
-      col = viridis(t);
-    } else {
-      col = viridis(t);
+      vec3 col;
+      if (cmap.compare("magma") == 0) {
+        col = magma(t);
+      } else if (cmap.compare("jet") == 0) {
+        col = jet(t);
+      } else if (cmap.compare("plasma") == 0) {
+        col = plasma(t);
+      } else if (cmap.compare("inferno") == 0) {
+        col = inferno(t);
+      } else if (cmap.compare("viridis") == 0) {
+        col = viridis(t);
+      } else {
+        col = viridis(t);
+      }
+
+      image_data[4 * idx + 0] = ftoc(col[0]);
+      image_data[4 * idx + 1] = ftoc(col[1]);
+      image_data[4 * idx + 2] = ftoc(col[2]);
+      image_data[4 * idx + 3] = 255;
     }
-
-    image_data[4 * i + 0] = ftoc(col[0]);
-    image_data[4 * i + 1] = ftoc(col[1]);
-    image_data[4 * i + 2] = ftoc(col[2]);
-    image_data[4 * i + 3] = 255;
-
   }
 
-  int id = nvgCreateImageRGBA(ctx, w, /* height */1, /* flags */0, image_data.data());
+  int id = nvgCreateImageRGBA(ctx, width, height, /* flags */NVG_IMAGE_NEAREST, image_data.data());
 
   return id;
 }
@@ -244,12 +250,8 @@ class Plot::Impl
       return;
     }
 
-    // Create color map
-    cmap_ids["viridis"] = CreateColorMapImage(vg, "viridis");
-    cmap_ids["jet"] = CreateColorMapImage(vg, "jet");
-    cmap_ids["magma"] = CreateColorMapImage(vg, "magma");
-    cmap_ids["inferno"] = CreateColorMapImage(vg, "inferno");
-    cmap_ids["plasma"] = CreateColorMapImage(vg, "plasma");
+    // Setup fonts.
+    font_ids["roboto"] = nvgCreateFontMem(vg, "roboto", reinterpret_cast<unsigned char *>(const_cast<unsigned int *>(roboto_mono_medium_data)), roboto_mono_medium_size, /* freeData */0);
 
     nvgClearBackgroundRT(vg, 1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -262,7 +264,7 @@ class Plot::Impl
   ~Impl() {
     if (vg) {
 
-      for (auto id : cmap_ids) {
+      for (auto id : image_ids) {
         nvgDeleteImage(vg, id.second);
       }
 
@@ -273,14 +275,17 @@ class Plot::Impl
 
   Impl(const Impl&) = delete;
 
-  int GetColorMapImage(const std::string &name) {
-    if (cmap_ids.count(name)) {
-      return cmap_ids[name];
-    } else {
-      // Use default colormap.
-      // TODO(LTE): Print warnings
-      return cmap_ids["viridis"];
+  void RegisterImage(int id) {
+    if (!vg) {
+      return;
     }
+
+    if (image_ids.count(id)) {
+      // free it
+      nvgDeleteImage(vg, id);
+    }
+
+    image_ids[id] = id;
   }
 
   int width = 512;
@@ -289,9 +294,11 @@ class Plot::Impl
 
  private:
 
-  std::map<std::string, int> cmap_ids;
+  std::map<std::string, int> font_ids; // <font_name, nvg id>
+  std::map<int, int> image_ids; // <nvg id, nvg id>
 
-  int supersampling_level = 2; // 2x2 supersampling
+
+  int supersampling_level = 1; // n x n supersampling
 };
 
 Plot::Plot()
@@ -300,6 +307,8 @@ Plot::Plot()
   if (_impl->vg == nullptr) {
     _errs = "Failed to initialize NanoVG context.\n";
   }
+
+  cmap = "viridis";
 }
 
 Plot::~Plot()
@@ -396,15 +405,121 @@ bool Plot::matshow(const float *data, int width, int height)
     return false;
   }
 
-  // 2x2 pixel for each element.
-  int cmap_id = _impl->GetColorMapImage("viridis");
+  int mat_id = CreateMatImage(_impl->vg, width, height, data, /* colormap */"viridis");
 
-  NVGpaint img_paint = nvgImagePattern(_impl->vg, 0.0f, 0.0f, width * 2, height * 2, /* angle */0.0f, cmap_id, /* alpha */1.0f);
+  _impl->RegisterImage(mat_id);
+
+  // HACK
+  int y_offt = 32;
+
+  // n x n pixel for each element.
+  // TODO(LTE): Compute good scaling factor based on canvas size and matrix size.
+  int scale = 4;
+  NVGpaint img_paint = nvgImagePattern(_impl->vg, 0.0f, 0.0f, width * scale, height * scale, /* radian */0.0f, mat_id, /* alpha */1.0f);
 
   nvgBeginPath(_impl->vg);
-  nvgRect(_impl->vg, _offset[0], _offset[1], width * 2, height * 2);
+  nvgRect(_impl->vg, _offset[0], y_offt, width * scale, height * scale);
   nvgFillPaint(_impl->vg, img_paint);
   nvgFill(_impl->vg);
+
+  return true;
 }
+
+bool Plot::text(const std::string &text, int x, int y, int font_size)
+{
+  if (!valid()) {
+    return false;
+  }
+
+  nvgFontSize(_impl->vg, float(font_size));
+  nvgFontFace(_impl->vg, "roboto");
+  nvgFillColor(_impl->vg, nvgRGBA(32, 32, 32, 192));
+
+  nvgTextAlign(_impl->vg, NVG_ALIGN_LEFT|NVG_ALIGN_MIDDLE);
+  nvgText(_impl->vg, x, y, text.c_str(), nullptr);
+
+  return true;
+}
+
+bool Plot::colorbar()
+{
+  if (!valid()) {
+    return false;
+  }
+
+  if (!valid()) {
+    return false;
+  }
+
+  const size_t image_size = 256;
+  std::vector<float> values(image_size);
+  for (size_t i = 0; i < image_size; i++) {
+    // end is inclusive.
+    values[i] = float(i) / float(image_size - 1);
+  }
+
+  int mat_id = CreateMatImage(_impl->vg, image_size, 1, values.data(), cmap);
+
+  _impl->RegisterImage(mat_id);
+
+  int bar_width = 16;
+  // TODO(LTE): horizontal
+  const float radian = -90.0f * (3.141592f / 180.0f);
+
+  float y_offt = 32.0f;
+  NVGpaint img_paint = nvgImagePattern(_impl->vg, 0.0f, y_offt, image_size, bar_width, radian, mat_id, /* alpha */1.0f);
+
+  // draw border
+  nvgBeginPath(_impl->vg);
+  nvgRect(_impl->vg, 314-1, y_offt, 32+2, image_size+1); // +1 for hack
+  nvgFillColor(_impl->vg, nvgRGBA(8, 8, 8, 255));
+  nvgFill(_impl->vg);
+
+  // draw cmap bar
+  nvgBeginPath(_impl->vg);
+  nvgRect(_impl->vg, 314, y_offt+1, 32, image_size-1);
+  nvgFillPaint(_impl->vg, img_paint);
+  nvgFill(_impl->vg);
+
+
+  {
+    // show tick
+    int num_ticks = 10;
+    float tick_len = 8.0f;
+
+    float y_step = float(image_size) / float(num_ticks);
+
+    nvgStrokeWidth(_impl->vg, 1.0f);
+    nvgStrokeColor(_impl->vg, nvgRGBA(0, 0, 0, 255));
+    nvgBeginPath(_impl->vg);
+
+    float x_offt = 314.0f + 32.0f;
+    float tick_y = y_offt;
+    for (int i = 0; i <= num_ticks; i++) {
+
+      nvgMoveTo(_impl->vg, x_offt, tick_y);
+      nvgLineTo(_impl->vg, x_offt + tick_len, tick_y);
+
+      tick_y += y_step;
+    }
+
+    nvgStroke(_impl->vg);
+
+    // tick label
+    x_offt = 314.0f + 32.0f + 12;
+    tick_y = y_offt;
+    for (int i = 0; i <= num_ticks; i++) {
+      std::stringstream ss;
+      ss << std::setprecision(2) << float(i) / float(num_ticks);
+      std::string label = ss.str();
+      text(label, int(x_offt), int(tick_y), 18);
+      tick_y += y_step;
+    }
+
+  }
+
+  return true;
+}
+
 
 } // namespace tinyplotlib

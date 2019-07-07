@@ -1862,9 +1862,13 @@ static void rtnvg__stroke(RTNVGcontext *rt, RTNVGcall *call) {
       // bmax[2]);
 
       int bound[4]; // l,t,r,b
-      bound[0] = (int)bmin[0] - 1;
-      bound[1] = (int)bmin[1] - 1;
-      bound[2] = (int)bmax[0] + 1;
+      //bound[0] = (int)bmin[0] - 1;
+      //bound[1] = (int)bmin[1] - 1;
+      //bound[2] = (int)bmax[0] + 1;
+      //bound[3] = (int)bmax[1] + 1;
+      bound[0] = (int)bmin[0];
+      bound[1] = (int)bmin[1];
+      bound[2] = (int)bmax[0];
       bound[3] = (int)bmax[1] + 1;
       if (bound[0] < 0)           bound[0] = 0;
       if (bound[1] < 0)           bound[1] = 0;
@@ -1882,6 +1886,8 @@ static void rtnvg__stroke(RTNVGcontext *rt, RTNVGcall *call) {
           nanort::Ray ray;
           ray.org[0] = x + 0.5f;
           ray.org[1] = y + 0.5f;
+          ray.org[0] = x;
+          ray.org[1] = y;
           ray.org[2] = 1.0f;
 
           ray.dir[0] = 0.0f;

@@ -6,6 +6,11 @@
 
 namespace tinyplotlib {
 
+struct Rect
+{
+  int x, y;
+};
+
 class Plot
 {
  public:
@@ -65,6 +70,17 @@ class Plot
   bool matshow(const float *data, int width, int height);
 
   ///
+  /// Draw text
+  /// TODO(LTE): Font type, align,
+  ///
+  bool text(const std::string &text, int x, int y, int font_size = 16);
+
+  ///
+  /// Draw colorbar with currently selected colormap.
+  ///
+  bool colorbar();
+
+  ///
   /// Get error messages.
   ///
   std::string get_errors() const {
@@ -75,6 +91,10 @@ class Plot
   int _aa_samples = 1;
 
   int _offset[2] = {8, 8}; // FIXME(LTE): Compute good initial offset(pixel margin)
+
+  std::string cmap = "viridis"; // current colormap
+
+  std::vector<Rect> rect_list;
 
   std::string _errs;
 

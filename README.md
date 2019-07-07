@@ -28,7 +28,6 @@ Very early, proof of concept stage. No API yet.
 * [ ] Show legend.
 * [ ] Show tick
 * [ ] Show title/text
-* [ ]
 
 ## License
 
@@ -40,4 +39,5 @@ MIT license.
 * nanort, nanovg-nanort : MIT license.
 * stb : Public domain.
 * colormap : CC-0
+* Roboto-Mono font : Apache 2.0 License. https://fonts.google.com/specimen/Roboto+Mono
 
