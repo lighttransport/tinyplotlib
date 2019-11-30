@@ -19,6 +19,21 @@ Very early, proof of concept stage. No API yet.
 * C++11 compiler
 * CMake(for running tests)
 
+### imshow
+
+You can use system's image viewer to view a plotted image using `imshow` method.
+Internally it calls image viewer application through `system()` function.
+
+You can change the command argument by `plt.set_imshow_command()`
+
+In default, command is set to
+
+* Windows: `start.exe`(Use Explorer)
+* Linux: `display`(Use image magic)
+* macOS: `open`(Use Finder)
+
+`imshow()`
+
 ### Supported colormap
 
 `viridis`(default), `plasma`, `magma`, `inferno`, `jet`

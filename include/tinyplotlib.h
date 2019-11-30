@@ -81,6 +81,13 @@ class Plot
   bool colorbar();
 
   ///
+  /// Display image using system's image viewer.
+  /// This may fail when there is no image viewer installed on your system
+  /// (Image magic on Linux environment)
+  ///
+  bool imshow();
+
+  ///
   /// Get error messages.
   ///
   std::string get_errors() const {
@@ -93,6 +100,8 @@ class Plot
   int _offset[2] = {8, 8}; // FIXME(LTE): Compute good initial offset(pixel margin)
 
   std::string cmap = "viridis"; // current colormap
+
+  std::string _imshow_command;
 
   std::vector<Rect> rect_list;
 

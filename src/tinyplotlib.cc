@@ -308,6 +308,15 @@ Plot::Plot()
     _errs = "Failed to initialize NanoVG context.\n";
   }
 
+#if defined(_WIN32)
+  _imshow_command = "start";
+#elif defined(__APPLE__)
+  _imshow_command = "open";
+#else
+  // Assume unixish sytem
+  _imshow_command = "display";
+#endif
+
   cmap = "viridis";
 }
 
@@ -517,6 +526,33 @@ bool Plot::colorbar()
     }
 
   }
+
+  return true;
+}
+
+bool Plot::imshow()
+{
+  if (_imshow_command.empty()) {
+    return false;
+  }
+
+  render();
+
+  std::string tmp_filename = "untitled.png"; // TODO(LTE): Generate unique tmp name.
+
+  bool ret = savefig(tmp_filename);
+  if (!ret) {
+    return false;
+  }
+
+  std::stringstream ss;
+  ss << _imshow_command << " " << tmp_filename;
+
+  std::string cmd = ss.str();
+
+  int retcode = system(cmd.c_str());
+  // TODO(LTE): Check retcode.
+  (void)retcode;
 
   return true;
 }
